@@ -62,7 +62,7 @@ def step_potential(x, pars):
 # x - position from the origin (spherical)
 # pars[0]: epsilon - potential strength
 # pars[1]: sigma - potential scaling
-def Lennard_Jones_potential(x, epsilon, sigma):
+def Lennard_Jones_potential(x, pars):
     if len(pars) != 2:
         print("Error: wrong parameters for Lennard-Jones potential")
         print("Usage: pars[0] = epsilon, pars[1] = sigma")
@@ -74,11 +74,11 @@ def Lennard_Jones_potential(x, epsilon, sigma):
 
 ## Morse intermolecular potential
 ## returns spherical Morse distribution; similar to Lennard-Jones
-# r - position from the origin (spherical)
+# x - position from the origin (spherical)
 # pars[0]: r0 - minimum location
 # pars[1]: D - potential scale
 # pars[2]: a - exponential scale
-def Morse_potential(r, pars):
+def Morse_potential(x, pars):
     if len(pars) != 3:
         print("Error: wrong parameters for Morse potential")
         print("Usage: pars[0] = epsilon, pars[1] = sigma")
