@@ -70,7 +70,7 @@ def Lennard_Jones_potential(x, pars):
     if pot_np.any(x <= 0.):
         print("Error: all x must be greater than 0 for the Lennard-Jones")
         return None
-    return 4.*pars[0]*((pars[1]/r)**12-(pars[1]/r)**6)
+    return 4.*pars[0]*((pars[1]/x)**12-(pars[1]/x)**6)
 
 ## Morse intermolecular potential
 ## returns spherical Morse distribution; similar to Lennard-Jones
@@ -86,6 +86,6 @@ def Morse_potential(x, pars):
     if pot_np.any(x <= 0.):
         print("Error: all x must be greater than 0 for the Morse potential")
         return None
-    return pars[1]*(1. - pot_np.exp(-pars[2]*(r-pars[0]))**2 - pars[1]
+    return pars[1]*(1. - pot_np.exp(-pars[2]*(x-pars[0]))**2 - pars[1]
               
               
