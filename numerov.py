@@ -16,10 +16,10 @@ import numpy as nv_np
 # forward - can solve from 0->N (true) or N->0 (false) in the x domain
 # psi0 - optional boundary condition on the edge of the domain
 # psi1 - optional boundary condition one step inside edge
-def solve_TISE_numerov(x, E, V, forward=True, psi0=None, psi1=None):
+def solve_TISE_numerov(x, E, V, norm = True, forward=True, psi0=None, psi1=None):
     
     # Some constants needed for convenience
-    h2_2m = 3.81e-2 # eV * nm^2
+    h2_2m = 0.5 #3.81e-2 # eV * nm^2
     h = x[1]-x[0]
     psi = nv_np.zeros_like(x, dtype=complex)
     k2 = (1./h2_2m) * (E - V)
@@ -54,7 +54,9 @@ def solve_TISE_numerov(x, E, V, forward=True, psi0=None, psi1=None):
             psi[i-1] = (2.*psi[i]*(1.-5.*k2h2_12[i]) - psi[i+1]*(1.+k2h2_12[i+1])) / (1. + k2h2_12[i-1])
 
     # Return normalized psi(x)
-    return psi / nv_np.sqrt(nv_np.trapz(nv_np.absolute(psi)**2, x))
+    if norm:
+        return psi / nv_np.sqrt(nv_np.trapz(nv_np.absolute(psi)**2, x))
+    return psi
 
 
 ## Eigenstate solving function that uses the results of 
@@ -126,6 +128,23 @@ def find_bound_states(x, E_range, V, forward=True, tol=1e-3):
     return energies, wavefunctions
 
 
+
+## Output the far boundary condition over an energy range for a given potential.
+## Useful to make sure the eigenvalues are within the energy range and
+## to "eyeball" the energies.
+# x - position array
+# E_range - energies over which to search for eigenstates/energies
+# V - potential to solve over
+# forward - can solve from 0->N (true) or N->0 (false) in the x domain
+def boundary_conditions(x, Erange, V, forward=True):
+    BCarray = nv_np.empty_like(Erange, dtype=complex)
+    
+    # check boundary conditions
+    j = -1 if forward else 0
+    for i in range(len(Erange)):
+        BCarray[i] = solve_TISE_numerov(x, Erange[i], V, forward)[j]
+    
+    return BCarray
 
 
 
