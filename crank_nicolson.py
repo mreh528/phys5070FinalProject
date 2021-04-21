@@ -29,7 +29,7 @@ are tridiagonal matrices.
 
 
 
-def CrankNicol(dt, dx, pot, psi_in):
+def CrankNicolson(dt, dx, pot, psi_in):
     nx = len(pot)
     Asub = np.empty(nx, dtype=complex)
     Bsub = np.empty(nx, dtype=complex)
@@ -47,3 +47,32 @@ def CrankNicol(dt, dx, pot, psi_in):
     # solve
     psi_out = sp.sparse.linalg.spsolve(A, B*psi_in)
     return psi_out
+
+    
+def do_time_evolution(x, t, laser, V, psi0, pop_states = None, use_ecs = False):
+    dt = t[1]-t[0]
+    dx = x[1]-x[0]
+    
+    ecs_start = 0.9*max(x)
+    ecs = np.zeros_like(x)
+    if use_ecs:
+        ecs = np.zeros_like(x, dtype=complex)
+        for i in range(len(x)):
+            if np.abs(x[i]) > ecs_start:
+                ecs[i] = 1j*np.abs(x[i])-ecs_start
+
+    psi = psi0.copy()
+    if pop_states is not None:
+        pop = [[] for i in range(len(pop_states))]
+
+    for i in range(len(t)):
+        pot = V + (x+ecs)*laser[i]
+        psi = CrankNicolson(dt, dx, pot, psi)
+
+        if pop_states is not None:
+            for s in range(len(pop_states)):
+                pop[s].append(np.abs(np.trapz(np.conj(pop_states[i])*psi, x))**2)
+
+    if pop_states is None:
+        return psi
+    return psi, pop
