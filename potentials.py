@@ -45,6 +45,21 @@ def delta_potential(x, pars):
     #epsilon = 1e-6 # may change epsilon depending on numerical error involved
     return pars[1] * 0.5*pars[2] / ((x-pars[0])**2 + (0.5*pars[2])**2) / pot_np.pi
 
+## symmetric Dirac delta function potential
+## Uses the Lorentzian limit definition; ....
+# x - position array
+# pars[0]: x0 - location of delta spike *first*
+# pars[1]: A - delta magnitudes
+# pars[2]: width of delta functions
+def double_delta_potential(x, pars):
+    if len(pars) != 3:
+        print("Error: wrong parameters for delta potential")
+        print("Usage: pars[0] = x0, pars[1] = A, pars[2] = width")
+        return None	
+    #epsilon = 1e-6 # may change epsilon depending on numerical error involved
+    return pars[1]*(0.5*pars[2] / ((x-pars[0])**2 + (0.5*pars[2])**2) / pot_np.pi +
+                    0.5*pars[2] / ((x+pars[0])**2 + (0.5*pars[2])**2) / pot_np.pi)
+
 ## Step potential barrier
 ## returns V0 if x is inside the barrier, 0 otherwise. Barrier left to right only
 # x - position array
