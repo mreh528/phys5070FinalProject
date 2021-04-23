@@ -28,7 +28,12 @@ are tridiagonal matrices.
 """
 
 
-
+## Crank-Nicolson time evolution algorithm, as described above.
+## Performs evolution for an individual time step
+# dt - time step
+# dx - spatial resolution
+# pot - potential to solve over
+# psi_in - input wavefunction
 def CrankNicolson(dt, dx, pot, psi_in):
     nx = len(pot)
     Asub = np.empty(nx, dtype=complex)
@@ -49,6 +54,15 @@ def CrankNicolson(dt, dx, pot, psi_in):
     return psi_out
 
     
+## Wrapper function for the Crank-Nicolson algorithm.
+## Evolves quantum states over some time and space domain
+# x - position array
+# t - time array to solve over
+# laser - laser waveform to excite system
+# V - potential to solve over
+# psi0 - initial wavefunction state
+# pop_states - optional state population array to solve for
+# use_ecs - flag for complex energies
 def do_time_evolution(x, t, laser, V, psi0, pop_states = None, use_ecs = False):
     dt = t[1]-t[0]
     dx = x[1]-x[0]

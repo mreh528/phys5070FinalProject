@@ -1,13 +1,21 @@
 import numpy as np
-from math import pi
 from scipy.optimize import newton
 from scipy.special import eval_hermite, factorial
 
+
+## Shorthand function for computing the absolute square integral
+# y - f(x) to integrate
+# x - position array
 def complex_quadrature(y, x):
     real_integral = np.trapz(np.real(y), x)
     imag_integral = np.trapz(np.imag(y), x)
     return (real_integral + 1j*imag_integral)
 
+
+## Analytic functional form of the potential to test against
+# name - name of the potential to test
+# x - position array
+# params - parameter dictionary; varies by function
 def test_potential(name, x, params = {}):
     if name == "box":
         return np.zeros(len(x))
@@ -15,14 +23,14 @@ def test_potential(name, x, params = {}):
         Gamma = params["Gamma"]
         x0 = params["x0"]
         Str = params["Str"]
-        return Str*(0.5*Gamma/pi)/((x-x0)**2 + (0.5*Gamma)**2)
+        return Str*(0.5*Gamma/np.pi)/((x-x0)**2 + (0.5*Gamma)**2)
 
     if name == "double delta":
         Gamma = params["Gamma"]
         x0 = params["x0"]
         x1 = -x0
         Str = params["Str"]
-        return Str*(0.5*Gamma/pi)/((x-x0)**2 + (0.5*Gamma)**2) + Str*(0.5*Gamma/pi)/((x-x1)**2 + (0.5*Gamma)**2)
+        return Str*(0.5*Gamma/np.pi)/((x-x0)**2 + (0.5*Gamma)**2) + Str*(0.5*Gamma/np.pi)/((x-x1)**2 + (0.5*Gamma)**2)
 
     if name == "sho":
         x0 = params["x0"]
@@ -31,10 +39,16 @@ def test_potential(name, x, params = {}):
 
         return 0.5*m0*w0**2*x**2
 
+
+## Analytic bound state energy computer
+# name - name of the potential to test
+# x - position array
+# n - energy level
+# params - parameter dictionary; varies by function
 def test_boundstate(name, x, n, params = {}):
     Nx = len(x)
     if name == "box":
-        return np.sqrt(2/(x[Nx-1]-x[0]))*np.sin(n*pi*(x-x[0])/(x[Nx-1]-x[0]),dtype=np.complex_)
+        return np.sqrt(2/(x[Nx-1]-x[0]))*np.sin(n*np.pi*(x-x[0])/(x[Nx-1]-x[0]),dtype=np.complex_)
     if name == "delta":
         if (params["Str"] >= 0):
             return np.zeros(len(x), dtype = complex)
@@ -87,6 +101,6 @@ def test_boundstate(name, x, n, params = {}):
 
         a = m0*w0
         y = np.sqrt(a)*(x-x0)
-        A = (a/pi)**0.25/np.sqrt(2**n*factorial(n))
+        A = (a/np.pi)**0.25/np.sqrt(2**n*factorial(n))
 
         return A*eval_hermite(n, y)*np.exp(-0.5*y**2, dtype = complex)

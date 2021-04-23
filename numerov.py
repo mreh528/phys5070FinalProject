@@ -13,6 +13,7 @@ import numpy as nv_np
 # x - position array
 # E - particle energy
 # V - potential to solve for
+# norm - state normalization flag
 # forward - can solve from 0->N (true) or N->0 (false) in the x domain
 # psi0 - optional boundary condition on the edge of the domain
 # psi1 - optional boundary condition one step inside edge
