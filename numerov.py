@@ -240,3 +240,189 @@ def scattering_outgoing_right(x, E, V):
 
 
 
+## Here we implement the bound state solver using the matching method
+##   boundary conditions are specified on both sides and integrated in
+##   then bound solutions are matched a the most inside turning point.
+## Becuase the boundary conditions specific on BOTH sides we need to 
+##   treat the case of an even number of nodes separately form an odd
+##   number of nodes.
+
+## This is the matching condition for an _even_ number of nodes,
+# x - position array
+# E - energy of scattering state
+# V - potential to solve over
+def matching_condition_even(x, E, V):
+    psi_L = solve_TISE_numerov(x, E, V, forward = True)
+    psi_R = solve_TISE_numerov(x, E, V, forward = False)
+    dpsi_L = nv_np.gradient(psi_L)
+    dpsi_R = nv_np.gradient(psi_R)
+    
+    # count turning points
+    turning = []
+    for i in range(len(V)-1):
+        if (V[i] <= E and V[i+1] >= E) or (V[i] >= E and V[i+1] <= E):
+            turning.append(i)               # turns across i and i+1
+
+    if len(turning) == 0:
+        print("Error no turning points found!")
+        return None
+        
+    # find match point
+    turn_idx = turning[len(turning)//2]
+
+    dE = psi_L[turn_idx] - psi_R[turn_idx]
+    #dE = (dpsi_L[turn_idx]/psi_L[turn_idx] - dpsi_R[turn_idx]/psi_R[turn_idx]) / (dpsi_L[turn_idx]/psi_L[turn_idx] + dpsi_R[turn_idx]/psi_R[turn_idx])
+
+    return dE
+
+
+## This is the matching condition for an _odd_ number of nodes,
+# x - position array
+# E - energy of scattering state
+# V - potential to solve over
+def matching_condition_odd(x, E, V):
+    psi_L = solve_TISE_numerov(x, E, V, forward = True, psi0=0, psi1=x[0]-x[1])
+    psi_R = solve_TISE_numerov(x, E, V, forward = False)
+    dpsi_L = nv_np.gradient(psi_L)
+    dpsi_R = nv_np.gradient(psi_R)
+    
+    # count turning points
+    turning = []
+    for i in range(len(V)-1):
+        if (V[i] <= E and V[i+1] >= E) or (V[i] >= E and V[i+1] <= E):
+            turning.append(i)               # turns across i and i+1
+
+    if len(turning) == 0:
+        print("Error no turning points found!")
+        return None
+        
+    # find match point
+    turn_idx = turning[len(turning)//2]
+
+    dE = psi_L[turn_idx-1] - psi_R[turn_idx+1]
+    #dE = (dpsi_L[turn_idx]/psi_L[turn_idx] - dpsi_R[turn_idx]/psi_R[turn_idx]) / (dpsi_L[turn_idx]/psi_L[turn_idx] + dpsi_R[turn_idx]/psi_R[turn_idx])
+
+    return dE
+
+
+## This is a wrapper-function for the wrapping conditions above
+# x - position array
+# E - energy of scattering state
+# V - potential to solve over
+# odd_nodes - select which condition we want
+def matching_condition(x, E, V, odd_nodes=True):
+    if odd_nodes:
+        return matching_condition_odd(x, E, V)
+    else:
+        return matching_condition_even(x, E, V)
+
+## This function take a array of energies and returns an array of 
+##    the matching conditions
+# x - position array
+# E - energy of scattering state
+# V - potential to solve over
+# odd_nodes - select which condition we want
+def matching_conditions(x, Erange, V, odd_nodes=True):
+    mc_array = nv_np.empty_like(Erange, dtype=complex)
+    
+    # check matching conditions
+    for i in range(len(Erange)):
+        mc_array[i] = matching_condition(x, Erange[i], V,odd_nodes)
+    
+    return mc_array
+   
+## The returns a wavefunction assuming 'E' is a well matched energy.
+## Assumes there is no degeneracy of the energy E
+# x - position array
+# E - energy of scattering state
+# V - potential to solve over
+def matching_wf(x, E, V,tol):
+    psi = nv_np.empty_like(x, dtype=complex)
+    if nv_np.abs(matching_condition_even(x, E, V)) < tol:
+        psi_L = solve_TISE_numerov(x, E, V, forward = True)
+        psi_R = solve_TISE_numerov(x, E, V, forward = False)
+    else:
+        psi_L = solve_TISE_numerov(x, E, V, forward = True, psi0=0, psi1=x[0]-x[1])
+        psi_R = solve_TISE_numerov(x, E, V, forward = False)
+    # count turning points
+    turning = []
+    for i in range(len(V)-1):
+        if (V[i] <= E and V[i+1] >= E) or (V[i] >= E and V[i+1] <= E):
+            turning.append(i)               # turns across i and i+1
+
+    if len(turning) == 0:
+        print("Error no turning points found!")
+        return None
+
+    # find match point
+    turn_idx = turning[len(turning)//2]
+    
+    for i in range(len(x)):
+        if i < turn_idx:
+            psi[i] = psi_L[i]
+        else:
+            psi[i] = psi_R[i]
+
+    return psi/nv_np.sqrt(nv_np.trapz(nv_np.abs(psi)**2,x))
+
+
+## Functions similarly to 'find_bound_states' aboce
+## Searches for eigen-energies and eigenstates for the specified
+## potential over the specified position domain over an input
+## range of energies
+# x - position array
+# Erange - energies over which to search for eigenstates/energies
+# V - potential to solve over
+# odd_nodes - select which condition we want
+# tol - error tolerance for solutions
+# max_iter - max number of iterations we are willing to look for
+def find_bound_states_matching(x, Erange, V, odd_nodes=True, tol=1e-6, max_iter=2000):
+    # Find values at the boundary for all input energies
+    Boundary_array = matching_conditions(x, Erange, V, odd_nodes)
+
+    # Find approximate location of zeros the energy domain by seeing 
+    # where the function flips sign
+    zero_locs = []
+    for i in range(len(Boundary_array)-1):
+        if Boundary_array[i]*Boundary_array[i+1] < 0.:
+            # append indices of the energies nearest to the zero
+            zero_locs.append([i,i+1]) 
+
+    energies = []
+    wavefunctions = []
+    for j in range(len(zero_locs)):
+        emin = Erange[zero_locs[j][0]]
+        emax = Erange[zero_locs[j][1]]
+
+        fmin = matching_condition(x, emin, V, odd_nodes)
+        fmax = matching_condition(x, emax, V, odd_nodes)
+    
+        if fmax*fmin > 0:
+            return None
+
+        converged = True
+        while True:
+            i += 1
+            emid = 0.5*(emin + emax)
+            fmid = matching_condition(x, emid, V, odd_nodes)
+            
+            if fmid*fmax > 0:                          # mid and max are on the same side
+                emax = emid
+                fmax = fmid
+            else:
+                emin = emid
+                fmin = fmid
+
+            if nv_np.abs(fmid) < tol:
+                break
+            if i > max_iter:
+                print("Failed to converge: " + str(nv_np.abs(fmid)))
+                converged = False
+                break
+
+        if converged:
+            energies.append(emid)
+            wavefunctions.append(matching_wf(x, emid, V, tol))
+        
+    return energies, wavefunctions
+     
