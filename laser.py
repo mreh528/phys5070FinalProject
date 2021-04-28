@@ -53,12 +53,12 @@ def gauss_laser(t, I, w0, cyc, t0=0, CEP=0):
 # CEP - carrier envelope phase
 def flat_laser(t, I, w0, cyc, ramp=0, CEP=0):
     t0 = 2*pi/w0
-    dur = t0*cycles0
+    dur = t0*cyc
     center0 = 0.5*dur
     centert = (t[-1]+t[0])/2.
     shift = center0-centert
 
-    las = np.sqrt(I0)*np.sin(w0*(t+shift)+CEP)
+    las = np.sqrt(I)*np.sin(w0*(t+shift)+CEP)
     t0, t1 = ramp*dur+shift, (1.-ramp)*dur+shift
     las[t<=t0] *= (np.cos(0.5*np.pi*(t-t0)/(t[0]-t0))[t<=t0])**2
     las[t>=t1] *= (np.cos(0.5*np.pi*(t-t1)/(t[-1]-t1))[t>=t1])**2
