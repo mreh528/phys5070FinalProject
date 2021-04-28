@@ -102,6 +102,5 @@ def Morse_potential(x, pars):
     if pot_np.any(x <= 0.):
         print("Error: all x must be greater than 0 for the Morse potential")
         return None
-    return pars[1]*(1. - pot_np.exp(-pars[2]*(x-pars[0]))**2 - pars[1]
-              
-              
+    return pars[1]*(1. - pot_np.exp(-pars[2]*(x-pars[0]))**2 - pars[1])
+
