@@ -86,19 +86,20 @@ Project steps:
     - For continuum states specify energy range to look
       - compute evenly spaced solutions in this range, 
       - phase shift:
+      - 
+
+    $$ \psi_k(x)\sim \sin(kx+\delta_k)=\cos\delta_k\sin(kx)+\sin\delta_k\cos(kx) $$
+
     $$
-    \psi_k(x)\sim \sin(kx+\delta_k)=\cos\delta_k\sin(kx)+\sin\delta_k\cos(kx)
-    \\\ 
-    \\
-    \frac{\psi_k(x_1)}{\psi_k(x_2)}=\frac{\cos\delta_k\sin(kx_1)+\sin\delta_k\cos(kx_1)}{\cos\delta_k\sin(kx_2)+\sin\delta_k\cos(kx_2)}\\
-    \ 
-    \\
+    \frac{\psi_k(x_1)}{\psi_k(x_2)}=\frac{\cos\delta_k\sin(kx_1)+\sin\delta_k\cos(kx_1)}{\cos\delta_k\sin(kx_2)+\sin\delta_k\cos(kx_2)} $$
+    $$
     (\sin(kx_2)+\tan\delta_k\cos(kx_2))\frac{\psi_k(x_1)}{\psi_k(x_2)}=\sin(kx_1)+\tan\delta_k\cos(kx_1)
-    \\\ 
-    \\
+    $$
+    
+    $$
     \tan\delta_k=\frac{\sin kx_1 \psi_1 + \sin kx_2 \psi_2}{\cos kx_1 \psi_1 + \cos kx_2 \psi_2}
     $$
-
+    
 * Time stepper (possible Euler (unstable), or I have an easy stable explicit method I do not know the name of, or Crank-Nicholson (matrix inversion))
 * Ionization, project $\psi_{\rm final}$ on to the continuum states.
 * Bound state population, project $\psi_{\rm final}$ on to the bound states.
@@ -109,5 +110,10 @@ Project steps:
 OTHER THINGS TO CONSIDER
 * reflections from the sides of the box, if this is a big deal we can add an absorber.
 * 
+
+------
+
+
+
 
 
