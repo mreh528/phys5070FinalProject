@@ -148,6 +148,95 @@ def boundary_conditions(x, Erange, V, forward=True):
     return BCarray
 
 
+## Compute scattering states with _incoming_ left and right boundary condition
+# x - position array
+# E - energy of scattering state
+# V - potential to solve over
+def scattering_incoming_left(x, E, V):
+    k = nv_np.sqrt(2*E)
+    # incoming from left boundary conditions (outgoing only on right)
+    psi_IL = solve_TISE_numerov(x, E, V, False, False, nv_np.exp(1j*k*x[-1]), nv_np.exp(1j*k*x[-2]))
+
+    # normalize to incoming amplitude (1)
+    aL=(psi_IL[1]*nv_np.exp(1j*k*x[1])-psi_IL[0]*nv_np.exp(1j*k*x[0]))/(nv_np.exp(2j*k*x[1])-nv_np.exp(2j*k*x[0]))
+    rL=nv_np.abs(aL)
+    pL=nv_np.angle(aL)
+    psi_IL = psi_IL*(nv_np.exp(-1j*pL)/rL)
+
+    return psi_IL
+
+def scattering_incoming_right(x, E, V):
+    k = nv_np.sqrt(2*E)
+    # incoming from right boundary conditions (outgoing only on left)
+    psi_IR = solve_TISE_numerov(x, E, V, False, True, nv_np.exp(-1j*k*x[0]), nv_np.exp(-1j*k*x[1]))
+    
+    aR=(psi_IR[-2]*nv_np.exp(-1j*k*x[-2])-psi_IR[-1]*nv_np.exp(-1j*k*x[-1]))/(nv_np.exp(-2j*k*x[-2])-nv_np.exp(-2j*k*x[-1]))
+    rR=nv_np.abs(aR)
+    pR=nv_np.angle(aR)
+    psi_IR = psi_IR*(nv_np.exp(-1j*pR)/rR)
+
+    return psi_IR
+
+
+## If the potential is even about the origin we can compute parity eigen states
+## Compute scattering states with even and odd parity
+# x - position array
+# E - energy of scattering state
+# V - potential to solve over
+def scattering_even(x, E, V):
+    r = len(x) % 2
+
+    xhalf, step = nv_np.linspace(0, x[-1], len(x)//2+r, retstep = True)
+    vhalf = V[len(x)//2:]
+        
+    k2 = 2*(E-vhalf)
+    f = 1+k2*step**2/12
+    
+    evenhalf = solve_TISE_numerov(xhalf, E, vhalf, False, True, 0.1, 0.1*(12-10*f[0])/(2*f[1]))
+
+    even = nv_np.empty_like(x, dtype=complex)
+    even[:len(evenhalf)] = nv_np.flip(evenhalf)
+    even[len(evenhalf)-r:] = evenhalf
+    
+    # normalize to the asymptotic state sin(kx+d)
+    k = nv_np.sqrt(2*E)
+    Aeven = nv_np.sqrt((even[-1]**2+even[-2]**2-2*even[-1]*even[-2]*nv_np.cos(k*(x[-1]-x[-2])))/nv_np.sin(k*(x[-1]-x[-2]))**2)
+    even = even / Aeven
+
+    return even
+
+def scattering_odd(x, E, V):
+    r = len(x) % 2
+
+    xhalf, step = nv_np.linspace(0, x[-1], len(x)//2+r, retstep = True)
+    vhalf = V[len(x)//2:]
+        
+    k2 = 2*(E-vhalf)
+    f = 1+k2*step**2/12
+    
+    oddhalf = solve_TISE_numerov(xhalf, E, vhalf, False, True, 0, 1)
+    
+    odd = nv_np.empty_like(x, dtype=complex)
+    odd[:len(oddhalf)] = -nv_np.flip(oddhalf)
+    odd[len(oddhalf)-r:] = oddhalf
+    
+    # normalize to the asymptotic state sin(kx+d)
+    k = nv_np.sqrt(2*E)
+    Aodd =  nv_np.sqrt(( odd[-1]**2+ odd[-2]**2-2* odd[-1]* odd[-2]*nv_np.cos(k*(x[-1]-x[-2])))/nv_np.sin(k*(x[-1]-x[-2]))**2)
+    odd = odd / Aodd
+
+    return odd
+
+## Compute scattering states with _outgoing_ left and right boundary condition
+# x - position array
+# E - energy of scattering state
+# V - potential to solve over
+def scattering_outgoing_left(x, E, V):
+    return nv_np.conj(scattering_incoming_left(x, E, V))
+
+def scattering_outgoing_right(x, E, V):
+    return nv_np.conj(scattering_incoming_right(x, E, V))
+
 
 
 
