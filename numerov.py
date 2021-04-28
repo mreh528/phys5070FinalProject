@@ -72,14 +72,15 @@ def solve_TISE_numerov(x, E, V, norm = True, forward=True, psi0=None, psi1=None)
 # V - potential to solve over
 # forward - can solve from 0->N (true) or N->0 (false) in the x domain
 # tol - error tolerance for solutions
-def bisect_numerov(x, E1, E2, V, forward=True, tol=1e-3):
+def bisect_numerov(x, E1, E2, V, forward=True, tol=1e-3, max_steps=20):
     
     # get initial shots
     left = solve_TISE_numerov(x, E1, V, forward)
     right = solve_TISE_numerov(x, E2, V, forward)
     
     # loop to a desired precision
-    while abs(left[-1] - right[-1]) > tol:
+    nsteps = 0
+    while abs(left[-1] - right[-1]) > tol and nsteps < max_steps:
         mid = solve_TISE_numerov(x, (E1+E2)/2., V, forward)
         # if the left and mid are the same sign, zero must be between mid and right
         if left[-1]*mid[-1] > 0.: 
@@ -89,6 +90,7 @@ def bisect_numerov(x, E1, E2, V, forward=True, tol=1e-3):
         else:
             E2 = (E1+E2)/2.
             right = mid
+        nsteps += 1
         
     # Return the solved eigenstate as well as the eigen-energy
     return solve_TISE_numerov(x, (E1+E2)/2., V, forward), (E1+E2)/2.
@@ -129,7 +131,6 @@ def find_bound_states(x, E_range, V, forward=True, tol=1e-3):
     return energies, wavefunctions
 
 
-
 ## Output the far boundary condition over an energy range for a given potential.
 ## Useful to make sure the eigenvalues are within the energy range and
 ## to "eyeball" the energies.
@@ -148,34 +149,29 @@ def boundary_conditions(x, Erange, V, forward=True):
     return BCarray
 
 
-## Compute scattering states with _incoming_ left and right boundary condition
+## Compute scattering states with _incoming_ left or right boundary condition
 # x - position array
 # E - energy of scattering state
 # V - potential to solve over
-def scattering_incoming_left(x, E, V):
+# forward - tells us whether the state is incoming right (true) or left (false)
+def scattering_incoming_LR(x, E, V, forward=True):
     k = nv_np.sqrt(2*E)
-    # incoming from left boundary conditions (outgoing only on right)
-    psi_IL = solve_TISE_numerov(x, E, V, False, False, nv_np.exp(1j*k*x[-1]), nv_np.exp(1j*k*x[-2]))
+    psi_I, amp = None, None
+
+    # incoming boundary condition from left or right
+    if forward:
+        psi_I = solve_TISE_numerov(x, E, V, False, True, nv_np.exp(-1j*k*x[0]), nv_np.exp(-1j*k*x[1]))
+        amp = (psi_I[-2]*nv_np.exp(-1j*k*x[-2]) - psi_I[-1]*nv_np.exp(-1j*k*x[-1])) / (nv_np.exp(-2j*k*x[-2]) - nv_np.exp(-2j*k*x[-1]))
+    else:
+        psi_I = solve_TISE_numerov(x, E, V, False, forward, nv_np.exp(1j*k*x[-1]), nv_np.exp(1j*k*x[-2]))
+        amp = (psi_I[1]*nv_np.exp(1j*k*x[1]) - psi_I[0]*nv_np.exp(1j*k*x[0])) / (nv_np.exp(2j*k*x[1]) - nv_np.exp(2j*k*x[0]))
 
     # normalize to incoming amplitude (1)
-    aL=(psi_IL[1]*nv_np.exp(1j*k*x[1])-psi_IL[0]*nv_np.exp(1j*k*x[0]))/(nv_np.exp(2j*k*x[1])-nv_np.exp(2j*k*x[0]))
-    rL=nv_np.abs(aL)
-    pL=nv_np.angle(aL)
-    psi_IL = psi_IL*(nv_np.exp(-1j*pL)/rL)
+    norm = nv_np.abs(amp)
+    phase = nv_np.angle(amp)
+    psi_I = psi_I*(nv_np.exp(-1j*phase)/norm) # Apply phase and normalization
 
-    return psi_IL
-
-def scattering_incoming_right(x, E, V):
-    k = nv_np.sqrt(2*E)
-    # incoming from right boundary conditions (outgoing only on left)
-    psi_IR = solve_TISE_numerov(x, E, V, False, True, nv_np.exp(-1j*k*x[0]), nv_np.exp(-1j*k*x[1]))
-    
-    aR=(psi_IR[-2]*nv_np.exp(-1j*k*x[-2])-psi_IR[-1]*nv_np.exp(-1j*k*x[-1]))/(nv_np.exp(-2j*k*x[-2])-nv_np.exp(-2j*k*x[-1]))
-    rR=nv_np.abs(aR)
-    pR=nv_np.angle(aR)
-    psi_IR = psi_IR*(nv_np.exp(-1j*pR)/rR)
-
-    return psi_IR
+    return psi_I
 
 
 ## If the potential is even about the origin we can compute parity eigen states
@@ -183,49 +179,37 @@ def scattering_incoming_right(x, E, V):
 # x - position array
 # E - energy of scattering state
 # V - potential to solve over
-def scattering_even(x, E, V):
+# even - boolean telling us whether the result should be even or odd
+def scattering_even_odd(x, E, V, even=True):
     r = len(x) % 2
+    k = nv_np.sqrt(2.*E)
+    k2 = 2.*(E-vhalf)
+    f = 1.+k2*step**2/12.
 
     xhalf, step = nv_np.linspace(0, x[-1], len(x)//2+r, retstep = True)
     vhalf = V[len(x)//2:]
-        
-    k2 = 2*(E-vhalf)
-    f = 1+k2*step**2/12
     
-    evenhalf = solve_TISE_numerov(xhalf, E, vhalf, False, True, 0.1, 0.1*(12-10*f[0])/(2*f[1]))
+    # Plan: solve from the midpoint out, then reflect across midpoint for parity
+    halfway = None
+    if even:
+        # Even is nonzero at the boundary and has zero derivative
+        halfway = solve_TISE_numerov(xhalf, E, vhalf, False, True, 0.1, 0.1*(12-10*f[0])/(2*f[1]))
+    else:
+        # Odd is zero at the boundary and has nonzero derivative
+        halfway = solve_TISE_numerov(xhalf, E, vhalf, False, True, 0., 1.)
 
-    even = nv_np.empty_like(x, dtype=complex)
-    even[:len(evenhalf)] = nv_np.flip(evenhalf)
-    even[len(evenhalf)-r:] = evenhalf
-    
-    # normalize to the asymptotic state sin(kx+d)
-    k = nv_np.sqrt(2*E)
-    Aeven = nv_np.sqrt((even[-1]**2+even[-2]**2-2*even[-1]*even[-2]*nv_np.cos(k*(x[-1]-x[-2])))/nv_np.sin(k*(x[-1]-x[-2]))**2)
-    even = even / Aeven
-
-    return even
-
-def scattering_odd(x, E, V):
-    r = len(x) % 2
-
-    xhalf, step = nv_np.linspace(0, x[-1], len(x)//2+r, retstep = True)
-    vhalf = V[len(x)//2:]
-        
-    k2 = 2*(E-vhalf)
-    f = 1+k2*step**2/12
-    
-    oddhalf = solve_TISE_numerov(xhalf, E, vhalf, False, True, 0, 1)
-    
-    odd = nv_np.empty_like(x, dtype=complex)
-    odd[:len(oddhalf)] = -nv_np.flip(oddhalf)
-    odd[len(oddhalf)-r:] = oddhalf
+    psi = nv_np.empty_like(x, dtype=complex)
+    if even:
+        psi[:len(halfway)] = nv_np.flip(halfway)
+    else:
+        psi[:len(halfway)] = -nv_np.flip(halfway)
+    psi[len(evenhalf)-r:] = evenhalf
     
     # normalize to the asymptotic state sin(kx+d)
-    k = nv_np.sqrt(2*E)
-    Aodd =  nv_np.sqrt(( odd[-1]**2+ odd[-2]**2-2* odd[-1]* odd[-2]*nv_np.cos(k*(x[-1]-x[-2])))/nv_np.sin(k*(x[-1]-x[-2]))**2)
-    odd = odd / Aodd
+    amp = nv_np.sqrt((psi[-1]**2 + psi[-2]**2 - 2*psi[-1]*psi[-2]*nv_np.cos(k*(x[-1]-x[-2]))) / nv_np.sin(k*(x[-1] - x[-2]))**2)
 
-    return odd
+    return psi / amp
+
 
 ## Compute scattering states with _outgoing_ left and right boundary condition
 # x - position array
@@ -234,88 +218,60 @@ def scattering_odd(x, E, V):
 def scattering_outgoing_left(x, E, V):
     return nv_np.conj(scattering_incoming_left(x, E, V))
 
+
 def scattering_outgoing_right(x, E, V):
     return nv_np.conj(scattering_incoming_right(x, E, V))
 
 
+'''
+Below we implement the bound state solver using the matching method.
+  Boundary conditions are specified on both sides and integrated in.
+  Bound solutions are then matched a the most inside turning point.
+Because the boundary conditions specific on BOTH sides we need to 
+  treat the case of an even number of nodes separately from an odd
+  number of nodes.
+'''
 
 
-## Here we implement the bound state solver using the matching method
-##   boundary conditions are specified on both sides and integrated in
-##   then bound solutions are matched a the most inside turning point.
-## Becuase the boundary conditions specific on BOTH sides we need to 
-##   treat the case of an even number of nodes separately form an odd
-##   number of nodes.
-
-## This is the matching condition for an _even_ number of nodes,
+## This is the matching condition for an even or odd number of nodes
 # x - position array
 # E - energy of scattering state
 # V - potential to solve over
-def matching_condition_even(x, E, V):
-    psi_L = solve_TISE_numerov(x, E, V, forward = True)
-    psi_R = solve_TISE_numerov(x, E, V, forward = False)
-    dpsi_L = nv_np.gradient(psi_L)
-    dpsi_R = nv_np.gradient(psi_R)
-    
-    # count turning points
-    turning = []
-    for i in range(len(V)-1):
-        if (V[i] <= E and V[i+1] >= E) or (V[i] >= E and V[i+1] <= E):
-            turning.append(i)               # turns across i and i+1
-
-    if len(turning) == 0:
-        print("Error no turning points found!")
-        return None
-        
-    # find match point
-    turn_idx = turning[len(turning)//2]
-
-    dE = psi_L[turn_idx] - psi_R[turn_idx]
-    #dE = (dpsi_L[turn_idx]/psi_L[turn_idx] - dpsi_R[turn_idx]/psi_R[turn_idx]) / (dpsi_L[turn_idx]/psi_L[turn_idx] + dpsi_R[turn_idx]/psi_R[turn_idx])
-
-    return dE
-
-
-## This is the matching condition for an _odd_ number of nodes,
-# x - position array
-# E - energy of scattering state
-# V - potential to solve over
-def matching_condition_odd(x, E, V):
-    psi_L = solve_TISE_numerov(x, E, V, forward = True, psi0=0, psi1=x[0]-x[1])
-    psi_R = solve_TISE_numerov(x, E, V, forward = False)
-    dpsi_L = nv_np.gradient(psi_L)
-    dpsi_R = nv_np.gradient(psi_R)
-    
-    # count turning points
-    turning = []
-    for i in range(len(V)-1):
-        if (V[i] <= E and V[i+1] >= E) or (V[i] >= E and V[i+1] <= E):
-            turning.append(i)               # turns across i and i+1
-
-    if len(turning) == 0:
-        print("Error no turning points found!")
-        return None
-        
-    # find match point
-    turn_idx = turning[len(turning)//2]
-
-    dE = psi_L[turn_idx-1] - psi_R[turn_idx+1]
-    #dE = (dpsi_L[turn_idx]/psi_L[turn_idx] - dpsi_R[turn_idx]/psi_R[turn_idx]) / (dpsi_L[turn_idx]/psi_L[turn_idx] + dpsi_R[turn_idx]/psi_R[turn_idx])
-
-    return dE
-
-
-## This is a wrapper-function for the wrapping conditions above
-# x - position array
-# E - energy of scattering state
-# V - potential to solve over
-# odd_nodes - select which condition we want
+# odd_nodes - select even (false) or odd (true)
 def matching_condition(x, E, V, odd_nodes=True):
+    #if odd_nodes:
+    #    return matching_condition_odd(x, E, V)
+    #else:
+    #    return matching_condition_even(x, E, V)
+    psi_L = None
     if odd_nodes:
-        return matching_condition_odd(x, E, V)
+        psi_L = solve_TISE_numerov(x, E, V, forward = True, psi0=0, psi1=x[0]-x[1])
     else:
-        return matching_condition_even(x, E, V)
+        psi_L = solve_TISE_numerov(x, E, V, forward = True)
+    psi_R = solve_TISE_numerov(x, E, V, forward = False)
+    dpsi_L = nv_np.gradient(psi_L)
+    dpsi_R = nv_np.gradient(psi_R)
+    
+    # count turning points
+    turning = []
+    for i in range(len(V)-1):
+        if (V[i] <= E and V[i+1] >= E) or (V[i] >= E and V[i+1] <= E):
+            turning.append(i)               # turns across i and i+1
 
+    if len(turning) == 0:
+        print("Error no turning points found!")
+        return None
+        
+    # find match point
+    turn_idx = turning[len(turning)//2]
+
+    #dE = (dpsi_L[turn_idx]/psi_L[turn_idx] - dpsi_R[turn_idx]/psi_R[turn_idx]) / (dpsi_L[turn_idx]/psi_L[turn_idx] + dpsi_R[turn_idx]/psi_R[turn_idx])
+    if odd_nodes:
+        return psi_L[turn_idx-1] - psi_R[turn_idx+1]
+    else:
+        return psi_L[turn_idx] - psi_R[turn_idx]
+
+    
 ## This function take a array of energies and returns an array of 
 ##    the matching conditions
 # x - position array
@@ -331,6 +287,7 @@ def matching_conditions(x, Erange, V, odd_nodes=True):
     
     return mc_array
    
+    
 ## The returns a wavefunction assuming 'E' is a well matched energy.
 ## Assumes there is no degeneracy of the energy E
 # x - position array
@@ -338,7 +295,9 @@ def matching_conditions(x, Erange, V, odd_nodes=True):
 # V - potential to solve over
 def matching_wf(x, E, V,tol):
     psi = nv_np.empty_like(x, dtype=complex)
-    if nv_np.abs(matching_condition_even(x, E, V)) < tol:
+    #if nv_np.abs(matching_condition_even(x, E, V)) < tol:
+    # Automatically decides whether to match even or odd based on the matching
+    if nv_np.abs(matching_condition(x, E, V, odd_nodes=False)) < tol:
         psi_L = solve_TISE_numerov(x, E, V, forward = True)
         psi_R = solve_TISE_numerov(x, E, V, forward = False)
     else:
@@ -357,23 +316,25 @@ def matching_wf(x, E, V,tol):
     # find match point
     turn_idx = turning[len(turning)//2]
     
-    for i in range(len(x)):
-        if i < turn_idx:
-            psi[i] = psi_L[i]
-        else:
-            psi[i] = psi_R[i]
-
+    #for i in range(len(x)):
+    #    if i < turn_idx:
+    #        psi[i] = psi_L[i]
+    #    else:
+    #        psi[i] = psi_R[i]
+    psi[i < turn_idx] = psi_L[i < turn_idx]
+    psi[i >= turn_idx] = psi_R[i >= turn_idx]
+    
     return psi/nv_np.sqrt(nv_np.trapz(nv_np.abs(psi)**2,x))
 
 
-## Functions similarly to 'find_bound_states' aboce
+## Functions similarly to 'find_bound_states' above
 ## Searches for eigen-energies and eigenstates for the specified
 ## potential over the specified position domain over an input
 ## range of energies
 # x - position array
 # Erange - energies over which to search for eigenstates/energies
 # V - potential to solve over
-# odd_nodes - select which condition we want
+# odd_nodes - select whether to search for odd or even parity
 # tol - error tolerance for solutions
 # max_iter - max number of iterations we are willing to look for
 def find_bound_states_matching(x, Erange, V, odd_nodes=True, tol=1e-6, max_iter=2000):
@@ -396,33 +357,31 @@ def find_bound_states_matching(x, Erange, V, odd_nodes=True, tol=1e-6, max_iter=
 
         fmin = matching_condition(x, emin, V, odd_nodes)
         fmax = matching_condition(x, emax, V, odd_nodes)
-    
+        
+        # If both sides of the zero have the same sign, failed matching -> skip
         if fmax*fmin > 0:
-            return None
+            continue
 
-        converged = True
-        while True:
-            i += 1
+        # Binary search for more accurate energy
+        while nv_np.abs(fmid) >= tol and i < max_iter:
             emid = 0.5*(emin + emax)
             fmid = matching_condition(x, emid, V, odd_nodes)
             
-            if fmid*fmax > 0:                          # mid and max are on the same side
+            if fmid*fmax > 0: # mid and max are on the same side
                 emax = emid
                 fmax = fmid
             else:
                 emin = emid
                 fmin = fmid
+            i += 1
 
-            if nv_np.abs(fmid) < tol:
-                break
-            if i > max_iter:
-                print("Failed to converge: " + str(nv_np.abs(fmid)))
-                converged = False
-                break
-
-        if converged:
+        # Check for convergence
+        if i >= max_iter:
+            print("Failed to converge: " + str(nv_np.abs(fmid)))
+        else:
             energies.append(emid)
             wavefunctions.append(matching_wf(x, emid, V, tol))
         
     return energies, wavefunctions
      
+    
