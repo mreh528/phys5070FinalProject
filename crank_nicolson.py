@@ -69,6 +69,7 @@ def do_time_evolution(x, t, laser, V, psi0, use_ecs = False):
     
     ecs_start = 0.9*max(x)
     ecs = np.zeros_like(x)
+    # Complex energies to help smear out edges
     if use_ecs:
         ecs = np.zeros_like(x, dtype=complex)
         for i in range(len(x)):
@@ -76,14 +77,22 @@ def do_time_evolution(x, t, laser, V, psi0, use_ecs = False):
                 ecs[i] = 1j*np.abs(x[i])-ecs_start
 
     psi = psi0.copy()
-
+    
+    # Loop over laser waveform to compute time evolution
     for i in range(len(t)):
         pot = V + (x+ecs)*laser[i]
         psi = sparse_solver(dt, dx, pot, psi)
 
     return psi
 
-    
+
+## Crank-Nicolson time evolution algorithm
+## Performs evolution for an individual time step
+## Modified from the above to use the banded solver from scipy
+# dt - time step
+# dx - spatial resolution
+# pot - potential to solve over
+# psi_in - input wavefunction
 def banded_solver(dt, dx, pot, psi_in):
     nx = len(pot)
 
@@ -104,16 +113,28 @@ def banded_solver(dt, dx, pot, psi_in):
     psi_out = sp.linalg.solve_banded((1, 1), ab, B*psi_in)
     return psi_out
 
+    
+## Wrapper function for the Crank-Nicolson algorithm.
+## Evolves quantum states over some time and space domain
+## Edited from the above to use masks instead of loops
+# x - position array
+# t - time array
+# laser - laser waveform array; same shape as t
+# V - potential to solve over; same shape as x
+# x0 - position of one delta peak
+# x1 - position of second delta peak
 def do_time_evolution_mask(x, t, laser, V, psi0, x0, x1):
     dt = t[1]-t[0]
     dx = x[1]-x[0]
     
     psi = psi0.copy()
-
+    
+    # Mask to round off edges instead of using complex decay
     mask = np.ones_like(x)
     mask[x<=x0] = (np.cos(0.5*np.pi*(x-x0)/(x[0]-x0))[x<=x0])**2
     mask[x>=x1] = (np.cos(0.5*np.pi*(x-x1)/(x[-1]-x1))[x>=x1])**2
 
+    # Loop over laser waveform to perform time evolution
     for i in range(len(t)):
         pot = V + x*laser[i]
         psi = banded_solver(dt, dx, pot, psi)*mask
