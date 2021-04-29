@@ -19,6 +19,7 @@ def finite_square(x, pars):
     V[pot_np.absolute(x) <= pars[0]/2.] = pars[1]
     return V
 
+
 ## Harmonic oscillator potential
 ## returns a quadratic potential with shape governed by m, omega
 # x - position array
@@ -30,6 +31,7 @@ def harmonic_oscillator(x, pars):
         print("Usage: pars[0] = m, pars[1] = omega")
         return None
     return 0.5 * pars[0] * pars[1]**2 * x**2
+
 
 ## Dirac delta function potential
 ## Uses the Lorentzian limit definition; resolution limited by how fine x is
@@ -44,6 +46,7 @@ def delta_potential(x, pars):
         return None	
     #epsilon = 1e-6 # may change epsilon depending on numerical error involved
     return pars[1] * 0.5*pars[2] / ((x-pars[0])**2 + (0.5*pars[2])**2) / pot_np.pi
+
 
 ## symmetric Dirac delta function potential
 ## Uses the Lorentzian limit definition; ....
@@ -60,6 +63,7 @@ def double_delta_potential(x, pars):
     return pars[1]*(0.5*pars[2] / ((x-pars[0])**2 + (0.5*pars[2])**2) / pot_np.pi +
                     0.5*pars[2] / ((x+pars[0])**2 + (0.5*pars[2])**2) / pot_np.pi)
 
+
 ## Step potential barrier
 ## returns V0 if x is inside the barrier, 0 otherwise. Barrier left to right only
 # x - position array
@@ -73,6 +77,7 @@ def step_potential(x, pars):
     V = pot_np.zeros_like(x)
     V[x >= pars[0]] = pars[1]
 
+    
 ## Lennard-Jones potential (intermolecular potential)
 ## returns spherical Lennard-Jones distribution
 # x - position from the origin (spherical)
@@ -88,6 +93,7 @@ def Lennard_Jones_potential(x, pars):
         return None
     return 4.*pars[0]*((pars[1]/x)**12-(pars[1]/x)**6)
 
+
 ## Morse intermolecular potential
 ## returns spherical Morse distribution; similar to Lennard-Jones
 # x - position from the origin (spherical)
@@ -102,6 +108,6 @@ def Morse_potential(x, pars):
     if pot_np.any(x <= 0.):
         print("Error: all x must be greater than 0 for the Morse potential")
         return None
-    return pars[1]*(1. - pot_np.exp(-pars[2]*(x-pars[0]))**2 - pars[1]
+    return pars[1]*(1. - pot_np.exp(-pars[2]*(x-pars[0]))**2) - pars[1]
               
               
