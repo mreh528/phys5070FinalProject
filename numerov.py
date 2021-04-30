@@ -98,7 +98,7 @@ def bisect_numerov(x, E1, E2, V, forward=True, tol=1e-3, max_steps=20):
 
 ## Searches for eigen-energies and eigenstates for the specified
 ## potential over the specified position domain over an input
-## range of energies
+## range of energies using either x(0)=0 or x(L)=0 B.C.
 # x - position array
 # E_range - energies over which to search for eigenstates/energies
 # V - potential to solve over
@@ -293,7 +293,7 @@ def matching_conditions(x, Erange, V, odd_nodes=True):
 # x - position array
 # E - energy of scattering state
 # V - potential to solve over
-def matching_wf(x, E, V,tol):
+def matching_wf(x, E, V, tol):
     psi = nv_np.empty_like(x, dtype=complex)
     #if nv_np.abs(matching_condition_even(x, E, V)) < tol:
     # Automatically decides whether to match even or odd based on the matching
