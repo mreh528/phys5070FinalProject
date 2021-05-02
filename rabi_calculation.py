@@ -10,45 +10,37 @@ from numerov import find_bound_states, boundary_conditions
 from potentials import delta_potential
 
 
+## Calculates and returns state populations and other 
+## quantities for the Rabi oscillation calculation
+## for a given potential; uses a Gaussian flat laser pulse
+# x - position array
+# V - potential to solve over; same shape as x
+# Erange - array of energies near where bound states might exist
+# I0 - Laser intensity
+# ncyc - number of cycles in the Laser pulse
+def rabi_calculation(x, V, Erange, I0, ncyc):
 
-def rabi_calculation(dt, x, I0, cyc):
-    dx = x[1]-x[0]
-    nx = len(x)
+    # Search for bound states; we only care about the lowest two
+    energies, wavefunctions = find_bound_states(x, Erange, V, tol=1e-10)
 
-    ## SET UP POTENTIAL
-    params1 = [0.5, -2.0,0.1]
-    params2 = [-0.5, -2.0,0.1]
-    V = delta_potential(x, params1)+delta_potential(x, params2)
-    #params = [0, -5.0, 0.01]
-    #V = delta_potential(x, params)
-
-    ################ Find bound state energy range ################
-    Erange = np.linspace(-2.5, -0, 1000)  
-    #fig, ax1 = plt.subplots()
-    #ax1.plot(Erange, np.real(boundary_conditions(x, Erange, V)), 'g', label="ana")
-    #ax1.axhline(y=0)
-    #plt.show()
-
-    ################ FIND BOUND STATES ###########################
-    energies, wavefunctions = find_bound_states(x, Erange, V, tol = 1E-10)
-    #display(energies)
-
-    ################ COMPUTE DIPOLE FOR COMPARISON################
+    # Compute exact dipole for later comparison
     dipole = np.trapz(x*wavefunctions[0]*wavefunctions[1],x)
-    #display(dipole)
 
-    ################ SETUP LASER ################################
+    # Get laser frequency and use it to setup laser & time domain
     w0 = energies[1]-energies[0]
-    t0=2*pi/w0
+    t = np.linspace(0., 2.*pi*ncyc/w0, 10000)
+    las = flat_laser(t, I0, w0, ncyc, ramp=0.1)
 
-    t = np.arange(0, t0*cyc+dt, dt)
-    las = flat_laser(t, I0, w0, cyc, ramp=0.1)
-
-    ################ TIME EVOLUTION ################################
+    # Initialize lists for loop
     pop_ground = []
     pop_excited = []
     psi = wavefunctions[0]
-
+    
+    # Get descretizations for safekeeping
+    dt = t[1]-t[0]
+    dx = x[1]-x[0]
+    
+    # Time evolve the system to get population oscillations
     for i in range(len(t)):
         pot = V + x*las[i]
         psi = banded_solver(dt, dx, pot, psi)
@@ -58,11 +50,5 @@ def rabi_calculation(dt, x, I0, cyc):
     pop_ground = np.array(pop_ground)
     pop_excited = np.array(pop_excited)
 
-    ############## FIT THE DATA TO EXTRACT DIPOLE ###################
-    def rabi(x, A, dip, d):
-        return A*(np.sin(0.5*np.sqrt(I0)*dip*x+d))**2
+    return t, pop_ground, pop_excited, dipole
 
-    rabi_params, rabi_params_covariance = optimize.curve_fit(rabi, t[2*len(t)//10 : 8*len(t)//10], pop_excited[2*len(t)//10 : 8*len(t)//10], p0=[1, np.abs(dipole), 0.01])
-    #display(rabi_params)
-
-    return t, pop_ground, pop_excited, dipole, rabi_params
