@@ -1,3 +1,12 @@
+"""
+Rabi oscillation simulation module. Runs the 
+time evolution of a system under perturbation
+by a flat laser with specified intensity and 
+duration tuned to the energy transition between 
+the ground and first excited states of an input 
+potential
+"""
+
 import numpy as np
 from scipy import optimize
 
@@ -6,13 +15,13 @@ from matplotlib import pyplot as plt
 
 from crank_nicolson import banded_solver
 from laser import flat_laser
-from numerov import find_bound_states, boundary_conditions
+from numerov import find_bound_states
 from potentials import delta_potential
 
 
 ## Calculates and returns state populations and other 
 ## quantities for the Rabi oscillation calculation
-## for a given potential; uses a Gaussian flat laser pulse
+## for a given potential; uses a flat laser pulse
 # x - position array
 # V - potential to solve over; same shape as x
 # Erange - array of energies near where bound states might exist

@@ -1,10 +1,3 @@
-
-import numpy as np
-
-import scipy as sp
-from scipy import integrate, sparse, linalg
-import scipy.sparse.linalg
-
 """
 The Crank-Nicolson time evolution is both unconditionally stable and 
 preserves unitarity. The idea is to split the time evolution operator 
@@ -26,6 +19,12 @@ psi[n+1] = A^{-1}*B*psi[n]
 By discretized the spatial derivative in the Hamiltonian A and B
 are tridiagonal matrices.
 """
+
+import numpy as np
+
+import scipy as sp
+from scipy import integrate, sparse, linalg
+import scipy.sparse.linalg
 
 
 ## Crank-Nicolson time evolution algorithm, as described above.
