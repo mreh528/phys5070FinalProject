@@ -120,9 +120,9 @@ def banded_solver(dt, dx, pot, psi_in):
 # t - time array
 # laser - laser waveform array; same shape as t
 # V - potential to solve over; same shape as x
-# x0 - position of one delta peak
-# x1 - position of second delta peak
-def do_time_evolution_mask(x, t, laser, V, psi0, x0, x1):
+# x0 - position of left-most rounding boundary
+# x1 - position of right-most rounding boundary
+def do_time_evolution_mask(x, t, laser, V, psi0, x0=None, x1=None):
     dt = t[1]-t[0]
     dx = x[1]-x[0]
     
@@ -130,8 +130,9 @@ def do_time_evolution_mask(x, t, laser, V, psi0, x0, x1):
     
     # Mask to round off edges instead of using complex decay
     mask = np.ones_like(x)
-    mask[x<=x0] = (np.cos(0.5*np.pi*(x-x0)/(x[0]-x0))[x<=x0])**2
-    mask[x>=x1] = (np.cos(0.5*np.pi*(x-x1)/(x[-1]-x1))[x>=x1])**2
+    if x0 is not None and x1 is not None:
+        mask[x<=x0] = (np.cos(0.5*np.pi*(x-x0)/(x[0]-x0))[x<=x0])**2
+        mask[x>=x1] = (np.cos(0.5*np.pi*(x-x1)/(x[-1]-x1))[x>=x1])**2
 
     # Loop over laser waveform to perform time evolution
     for i in range(len(t)):

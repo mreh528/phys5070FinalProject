@@ -72,7 +72,7 @@ def solve_TISE_numerov(x, E, V, norm=True, forward=True, psi0=None, psi1=None):
 # V - potential to solve over
 # forward - can solve from 0->N (true) or N->0 (false) in the x domain
 # tol - error tolerance for solutions
-def bisect_numerov(x, E1, E2, V, forward=True, tol=1e-3, max_steps=20):
+def bisect_numerov(x, E1, E2, V, forward=True, tol=1e-7, max_steps=200):
     
     # get initial shots
     left = solve_TISE_numerov(x, E1, V, forward)
@@ -104,7 +104,7 @@ def bisect_numerov(x, E1, E2, V, forward=True, tol=1e-3, max_steps=20):
 # V - potential to solve over
 # forward - can solve from 0->N (true) or N->0 (false) in the x domain
 # tol - error tolerance for solutions
-def find_bound_states(x, E_range, V, forward=True, tol=1e-3):
+def find_bound_states(x, E_range, V, forward=True, tol=1e-7):
     
     # Find values at the boundary for all input energies
     Boundary_array = np.empty_like(E_range)

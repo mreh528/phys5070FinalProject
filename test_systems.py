@@ -57,7 +57,7 @@ def test_boundstate(name, x, n, params = {}):
     Nx = len(x)
     # Infinite square well
     if name == "box":
-        return np.sqrt(2/(x[Nx-1]-x[0]))*np.sin(n*np.pi*(x-x[0])/(x[Nx-1]-x[0]),dtype=np.complex_)
+        return np.sqrt(2/(x[-1]-x[0]))*np.sin(n*np.pi*(x-x[0])/(x[-1]-x[0]),dtype=np.complex_)
     # Single Delta Potential
     if name == "delta":
         if (params["Str"] >= 0):
